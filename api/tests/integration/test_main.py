@@ -11,12 +11,12 @@ def _route_paths() -> set[str]:
     return {route.path for route in app.routes}  # type: ignore[attr-defined]
 
 
-def test_tasks_create_route_registered() -> None:
+def test_tasks_list_route_registered() -> None:
     assert "/tasks/" in _route_paths()
 
 
-def test_tasks_complete_route_registered() -> None:
-    assert "/tasks/{task_id}/complete" in _route_paths()
+def test_tasks_get_route_registered() -> None:
+    assert "/tasks/{task_id}" in _route_paths()
 
 
 def test_agent_decision_route_registered() -> None:

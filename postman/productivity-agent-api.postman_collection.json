@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Productivity Agent API",
-    "description": "Collection for testing the Productivity Agent API. Set the `base_url` variable to your server address before running.",
+    "description": "Collection for testing the Productivity Agent API. Set the `base_url` variable to your server address before running.\n\nTasks are read-only — sourced from the external worky PostgreSQL database. Only GET endpoints are available.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -14,7 +14,7 @@
       "key": "task_id",
       "value": "",
       "type": "string",
-      "description": "Auto-populated after Create Task runs"
+      "description": "Set this to a real task ID from the worky database before running Get Task requests"
     }
   ],
   "item": [
@@ -22,38 +22,7 @@
       "name": "Tasks",
       "item": [
         {
-          "name": "Create Task — valid",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.id).to.be.a('string');",
-                  "  pm.collectionVariables.set('task_id', body.id);",
-                  "});",
-                  "pm.test('completed is false', () => pm.expect(pm.response.json().completed).to.be.false);",
-                  "pm.test('created_at is present', () => pm.expect(pm.response.json().created_at).to.be.a('string'));",
-                  "pm.test('completed_at is null', () => pm.expect(pm.response.json().completed_at).to.be.null);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Write unit tests\",\n  \"description\": \"Cover all service layer functions\",\n  \"priority\": 5,\n  \"tags\": [\"testing\", \"backend\"],\n  \"duration_hours\": 1.5,\n  \"deadline\": \"2026-03-25T18:00:00\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/tasks/", "host": ["{{base_url}}"], "path": ["tasks", ""] }
-          }
-        },
-        {
-          "name": "List Tasks",
+          "name": "List Tasks — all",
           "event": [
             {
               "listen": "test",
@@ -61,7 +30,17 @@
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));",
-                  "pm.test('Array is non-empty after create', () => pm.expect(pm.response.json().length).to.be.at.least(1));"
+                  "pm.test('No is_deleted field in items', () => {",
+                  "  const tasks = pm.response.json();",
+                  "  tasks.forEach(t => pm.expect(t).to.not.have.property('is_deleted'));",
+                  "});",
+                  "if (pm.response.json().length > 0) {",
+                  "  pm.collectionVariables.set('task_id', pm.response.json()[0].id);",
+                  "  pm.test('First task has id', () => pm.expect(pm.response.json()[0].id).to.be.a('string').and.not.empty);",
+                  "  pm.test('First task has name', () => pm.expect(pm.response.json()[0].name).to.be.a('string').and.not.empty);",
+                  "  pm.test('First task has status', () => pm.expect(pm.response.json()[0].status).to.be.a('string'));",
+                  "  pm.test('First task has priority', () => pm.expect(pm.response.json()[0].priority).to.be.a('string'));",
+                  "}"
                 ],
                 "type": "text/javascript"
               }
@@ -74,6 +53,171 @@
           }
         },
         {
+          "name": "List Tasks — filter by status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('All returned tasks match status filter', () => {",
+                  "  pm.response.json().forEach(t => pm.expect(t.status).to.eql('Planning'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tasks/?status=Planning",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", ""],
+              "query": [{ "key": "status", "value": "Planning" }]
+            }
+          }
+        },
+        {
+          "name": "List Tasks — filter by priority",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('All returned tasks match priority filter', () => {",
+                  "  pm.response.json().forEach(t => pm.expect(t.priority).to.eql('High'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tasks/?priority=High",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", ""],
+              "query": [{ "key": "priority", "value": "High" }]
+            }
+          }
+        },
+        {
+          "name": "List Tasks — filter by sprint_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tasks/?sprint_id=SP-001",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", ""],
+              "query": [{ "key": "sprint_id", "value": "SP-001" }]
+            }
+          }
+        },
+        {
+          "name": "List Tasks — filter by assigned_to",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tasks/?assigned_to=USR-001",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", ""],
+              "query": [{ "key": "assigned_to", "value": "USR-001" }]
+            }
+          }
+        },
+        {
+          "name": "List Tasks — filter by phase_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tasks/?phase_id=PH-001",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", ""],
+              "query": [{ "key": "phase_id", "value": "PH-001" }]
+            }
+          }
+        },
+        {
+          "name": "List Tasks — multiple filters (status + priority)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('All tasks match both filters', () => {",
+                  "  pm.response.json().forEach(t => {",
+                  "    pm.expect(t.status).to.eql('Planning');",
+                  "    pm.expect(t.priority).to.eql('High');",
+                  "  });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tasks/?status=Planning&priority=High",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", ""],
+              "query": [
+                { "key": "status", "value": "Planning" },
+                { "key": "priority", "value": "High" }
+              ]
+            }
+          }
+        },
+        {
           "name": "Get Task — valid",
           "event": [
             {
@@ -82,7 +226,11 @@
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                   "pm.test('id matches', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('task_id')));",
-                  "pm.test('title is present', () => pm.expect(pm.response.json().title).to.be.a('string').and.not.empty);"
+                  "pm.test('name is present', () => pm.expect(pm.response.json().name).to.be.a('string').and.not.empty);",
+                  "pm.test('status is present', () => pm.expect(pm.response.json().status).to.be.a('string'));",
+                  "pm.test('priority is present', () => pm.expect(pm.response.json().priority).to.be.a('string'));",
+                  "pm.test('user_story_id is present', () => pm.expect(pm.response.json().user_story_id).to.be.a('string').and.not.empty);",
+                  "pm.test('is_deleted is NOT in response', () => pm.expect(pm.response.json()).to.not.have.property('is_deleted'));"
                 ],
                 "type": "text/javascript"
               }
@@ -116,289 +264,10 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/tasks/00000000-0000-0000-0000-000000000000",
+              "raw": "{{base_url}}/tasks/TSK-NONEXISTENT",
               "host": ["{{base_url}}"],
-              "path": ["tasks", "00000000-0000-0000-0000-000000000000"]
+              "path": ["tasks", "TSK-NONEXISTENT"]
             }
-          }
-        },
-        {
-          "name": "Update Task — valid (PATCH)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('title updated', () => pm.expect(pm.response.json().title).to.eql('Write unit tests — updated'));",
-                  "pm.test('priority updated', () => pm.expect(pm.response.json().priority).to.eql(3));",
-                  "pm.test('id unchanged', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('task_id')));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Write unit tests — updated\",\n  \"priority\": 3,\n  \"duration_hours\": 1.0,\n  \"deadline\": \"2026-03-26T12:00:00\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tasks/{{task_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["tasks", "{{task_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Update Task — not found (404)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
-                  "pm.test('error_code is TASK_NOT_FOUND', () => pm.expect(pm.response.json().error_code).to.eql('TASK_NOT_FOUND'));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Ghost task\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tasks/00000000-0000-0000-0000-000000000000",
-              "host": ["{{base_url}}"],
-              "path": ["tasks", "00000000-0000-0000-0000-000000000000"]
-            }
-          }
-        },
-        {
-          "name": "Update Task — invalid priority (422)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
-                  "pm.test('error_code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error_code).to.eql('VALIDATION_ERROR'));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"priority\": 99\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tasks/{{task_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["tasks", "{{task_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Complete Task — valid",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('completed is true', () => pm.expect(pm.response.json().completed).to.be.true);",
-                  "pm.test('completed_at is set', () => pm.expect(pm.response.json().completed_at).to.be.a('string'));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/tasks/{{task_id}}/complete",
-              "host": ["{{base_url}}"],
-              "path": ["tasks", "{{task_id}}", "complete"]
-            }
-          }
-        },
-        {
-          "name": "Complete Task — already completed (409)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
-                  "pm.test('error_code is TASK_ALREADY_COMPLETED', () => pm.expect(pm.response.json().error_code).to.eql('TASK_ALREADY_COMPLETED'));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/tasks/{{task_id}}/complete",
-              "host": ["{{base_url}}"],
-              "path": ["tasks", "{{task_id}}", "complete"]
-            }
-          }
-        },
-        {
-          "name": "Complete Task — not found (404)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
-                  "pm.test('error_code is TASK_NOT_FOUND', () => pm.expect(pm.response.json().error_code).to.eql('TASK_NOT_FOUND'));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/tasks/00000000-0000-0000-0000-000000000000/complete",
-              "host": ["{{base_url}}"],
-              "path": ["tasks", "00000000-0000-0000-0000-000000000000", "complete"]
-            }
-          }
-        },
-        {
-          "name": "Delete Task — valid",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Body is empty', () => pm.expect(pm.response.text()).to.be.empty);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/tasks/{{task_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["tasks", "{{task_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Delete Task — not found (404)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
-                  "pm.test('error_code is TASK_NOT_FOUND', () => pm.expect(pm.response.json().error_code).to.eql('TASK_NOT_FOUND'));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/tasks/00000000-0000-0000-0000-000000000000",
-              "host": ["{{base_url}}"],
-              "path": ["tasks", "00000000-0000-0000-0000-000000000000"]
-            }
-          }
-        },
-        {
-          "name": "Create Task — missing title (422)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
-                  "pm.test('error_code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error_code).to.eql('VALIDATION_ERROR'));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"priority\": 3\n}"
-            },
-            "url": { "raw": "{{base_url}}/tasks/", "host": ["{{base_url}}"], "path": ["tasks", ""] }
-          }
-        },
-        {
-          "name": "Create Task — empty title (422)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
-                  "pm.test('error_code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error_code).to.eql('VALIDATION_ERROR'));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"\",\n  \"priority\": 3\n}"
-            },
-            "url": { "raw": "{{base_url}}/tasks/", "host": ["{{base_url}}"], "path": ["tasks", ""] }
-          }
-        },
-        {
-          "name": "Create Task — priority out of range (422)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
-                  "pm.test('error_code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error_code).to.eql('VALIDATION_ERROR'));"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Some task\",\n  \"priority\": 10\n}"
-            },
-            "url": { "raw": "{{base_url}}/tasks/", "host": ["{{base_url}}"], "path": ["tasks", ""] }
           }
         }
       ]

@@ -72,6 +72,15 @@ class Settings(BaseSettings):
     task_title_empty_error: str = "title must not be empty or whitespace"
     task_duration_min: float = 0.25  # minimum duration in hours (15 minutes)
 
+    # PostgreSQL
+    pg_host: str = "localhost"
+    pg_port: int = 5437
+    pg_database: str = "worky"
+    pg_user: str = "postgres"
+    pg_password: str = ""
+    pg_min_connections: int = 2
+    pg_max_connections: int = 10
+
     # Exception messages
     exc_task_not_found_template: str = "Task {task_id} not found"
     exc_task_already_completed_template: str = "Task {task_id} is already completed"

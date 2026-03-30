@@ -1,48 +1,72 @@
-"""Integration-test fixtures — mocks the LangChain agent so no real OpenAI calls are made."""
+"""Integration-test fixtures — mocks the PostgresTaskRepository pool."""
 from __future__ import annotations
 
-import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi.testclient import TestClient
 
 
-def _make_agent_mock(tasks):
-    """Build a mock LangGraph agent that returns a deterministic JSON decision."""
-    pending = [t for t in tasks if not t.completed]
-    weighted_total = sum(t.priority for t in tasks)
-    weighted_done = sum(t.priority for t in tasks if t.completed)
-    score = round(weighted_done / weighted_total, 4) if weighted_total else 0.0
+def make_task_row(
+    id="TSK-001",
+    name="Test Task",
+    status="Planning",
+    priority="Medium",
+    user_story_id="US-001",
+    sprint_id=None,
+    assigned_to=None,
+    phase_id=None,
+    is_deleted=False,
+):
+    return {
+        "id": id,
+        "user_story_id": user_story_id,
+        "name": name,
+        "short_description": None,
+        "long_description": None,
+        "phase_id": phase_id,
+        "status": status,
+        "priority": priority,
+        "assigned_to": assigned_to,
+        "estimated_hours": None,
+        "actual_hours": None,
+        "start_date": None,
+        "due_date": None,
+        "completed_at": None,
+        "sprint_id": sprint_id,
+        "is_deleted": is_deleted,
+        "created_at": None,
+        "updated_at": None,
+        "created_by": None,
+        "updated_by": None,
+    }
 
-    if pending:
-        best = sorted(pending, key=lambda t: (-t.priority, t.created_at))[0]
-        next_task_id = best.id
-        suggestion = f"Prioritize: {best.title}"
-        reasoning = f"Selected '{best.title}' because it has the highest priority ({best.priority}) among pending tasks."
-    else:
-        next_task_id = None
-        suggestion = "All tasks complete. Add new tasks to keep momentum."
-        reasoning = "No pending tasks remain. All work is done."
 
-    output = json.dumps({
-        "next_task_id": next_task_id,
-        "productivity_score": score,
-        "suggestion": suggestion,
-        "reasoning": reasoning,
-    })
-    msg = MagicMock()
-    msg.content = output
-    agent = MagicMock()
-    agent.invoke.return_value = {"messages": [msg]}
-    return agent
+@pytest.fixture()
+def mock_pool():
+    """Patch _repo so no real DB connection is needed.
+
+    Patches init_pool/close_pool as no-ops and replaces _pool with a MagicMock
+    whose fetch/fetchrow are AsyncMocks returning empty results by default.
+    """
+    from app.api.tasks import _repo
+
+    pool = MagicMock()
+    pool.fetch = AsyncMock(return_value=[])
+    pool.fetchrow = AsyncMock(return_value=None)
+
+    with (
+        patch.object(_repo, "init_pool", new=AsyncMock()),
+        patch.object(_repo, "close_pool", new=AsyncMock()),
+        patch.object(_repo, "_pool", pool),
+    ):
+        yield pool
 
 
-@pytest.fixture(autouse=True)
-def mock_build_agent(tmp_repo):
-    """Patch _build_agent for every integration test — reads tasks from tmp_repo to build response."""
-    def _side_effect():
-        tasks = tmp_repo.list_tasks()
-        return _make_agent_mock(tasks)
+@pytest.fixture()
+def client(mock_pool):
+    """TestClient with DB pool mocked — lifespan runs without a real Postgres connection."""
+    from app.main import app
 
-    with patch("services.agent_service._build_agent", side_effect=_side_effect):
-        yield
+    with TestClient(app, raise_server_exceptions=True) as c:
+        yield c

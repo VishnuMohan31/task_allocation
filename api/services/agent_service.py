@@ -13,35 +13,30 @@ from models.task import Task
 
 @tool
 def get_pending_tasks(tasks_json: str) -> str:
-    """Return all pending (incomplete) tasks from the provided JSON task list."""
-    tasks = [Task(**t) for t in json.loads(tasks_json)]
-    pending = [t for t in tasks if not t.completed]
-    if not pending:
+    """Return all non-completed tasks from the provided JSON task list."""
+    tasks_data = json.loads(tasks_json)
+    if not tasks_data:
         return settings.agent_no_pending_message
     return json.dumps([
         {
-            "id": t.id,
-            "title": t.title,
-            "priority": t.priority,
-            "duration_hours": t.duration_hours,
-            "deadline": t.deadline.isoformat() if t.deadline else None,
-            "created_at": t.created_at.isoformat(),
+            "id": t["id"],
+            "name": t["name"],
+            "status": t["status"],
+            "priority": t["priority"],
         }
-        for t in pending
+        for t in tasks_data
     ])
 
 
 @tool
 def calculate_productivity_score(tasks_json: str) -> str:
-    """Calculate a weighted productivity score (0.0-1.0) from the task list."""
-    tasks = [Task(**t) for t in json.loads(tasks_json)]
-    if not tasks:
+    """Calculate a productivity score (0.0-1.0) from the task list."""
+    tasks_data = json.loads(tasks_json)
+    if not tasks_data:
         return str(0.0)
-    weighted_total = sum(t.priority for t in tasks)
-    if weighted_total == 0:
-        return str(0.0)
-    weighted_done = sum(t.priority for t in tasks if t.completed)
-    return str(round(weighted_done / weighted_total, 4))
+    total = len(tasks_data)
+    done = sum(1 for t in tasks_data if t.get("status") == "Done")
+    return str(round(done / total, 4))
 
 
 def _build_agent():
@@ -57,15 +52,12 @@ def decide(tasks: list[Task]) -> AgentDecision:
     tasks_json = json.dumps([
         {
             "id": t.id,
-            "title": t.title,
-            "description": t.description,
+            "name": t.name,
+            "status": t.status,
             "priority": t.priority,
-            "tags": t.tags,
-            "duration_hours": t.duration_hours,
-            "deadline": t.deadline.isoformat() if t.deadline else None,
-            "completed": t.completed,
-            "created_at": t.created_at.isoformat(),
-            "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+            "sprint_id": t.sprint_id,
+            "assigned_to": t.assigned_to,
+            "phase_id": t.phase_id,
         }
         for t in tasks
     ])

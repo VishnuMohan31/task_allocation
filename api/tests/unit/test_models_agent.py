@@ -8,12 +8,11 @@ from models.task import Task
 
 def make_task(**kwargs) -> Task:
     defaults = {
-        "title": "Test Task",
-        "description": "",
-        "priority": 3,
-        "tags": [],
-        "completed": False,
-        "created_at": datetime(2024, 1, 1, 12, 0, 0),
+        "id": "task-001",
+        "user_story_id": "us-001",
+        "name": "Test Task",
+        "status": "Planning",
+        "priority": "Medium",
     }
     defaults.update(kwargs)
     return Task(**defaults)
@@ -21,7 +20,7 @@ def make_task(**kwargs) -> Task:
 
 class TestAgentDecision:
     def test_valid_construction_with_task(self):
-        task = make_task(title="Write tests", priority=5)
+        task = make_task(name="Write tests", priority="High")
         decision = AgentDecision(
             next_task=task,
             productivity_score=0.75,
@@ -107,7 +106,7 @@ class TestAgentDecisionResponse:
 
     def test_data_field_type(self):
         decision = AgentDecision(
-            next_task=make_task(title="Deploy", priority=4),
+            next_task=make_task(name="Deploy", priority="High"),
             productivity_score=0.6,
             suggestion="Good pace. Next up: Deploy",
             reasoning="Deploy has the highest priority.",
@@ -116,7 +115,7 @@ class TestAgentDecisionResponse:
         assert isinstance(response.data, AgentDecision)
 
     def test_nested_task_accessible(self):
-        task = make_task(title="Review PR", priority=2)
+        task = make_task(name="Review PR", priority="Low")
         decision = AgentDecision(
             next_task=task,
             productivity_score=0.3,
@@ -125,7 +124,7 @@ class TestAgentDecisionResponse:
         )
         response = AgentDecisionResponse(data=decision)
         assert response.data.next_task is not None
-        assert response.data.next_task.title == "Review PR"
+        assert response.data.next_task.name == "Review PR"
 
     def test_missing_data_field_raises(self):
         with pytest.raises(Exception):

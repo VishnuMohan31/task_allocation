@@ -5,7 +5,6 @@ The AgentExecutor is mocked so no real OpenAI calls are made in CI.
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,19 +17,16 @@ from models.task import Task
 # Helpers
 # ---------------------------------------------------------------------------
 
-def make_task(
-    title: str = "Task",
-    priority: int = 3,
-    completed: bool = False,
-    created_at: datetime | None = None,
-) -> Task:
-    return Task(
-        title=title,
-        description="",
-        priority=priority,
-        completed=completed,
-        created_at=created_at or datetime.utcnow(),
-    )
+def make_task(**kwargs) -> Task:
+    defaults = {
+        "id": "task-001",
+        "user_story_id": "us-001",
+        "name": "Task",
+        "status": "Planning",
+        "priority": "Medium",
+    }
+    defaults.update(kwargs)
+    return Task(**defaults)
 
 
 def _mock_agent(next_task_id: str | None, score: float, suggestion: str, reasoning: str = "Mock reasoning."):
@@ -55,7 +51,7 @@ def _mock_agent(next_task_id: str | None, score: float, suggestion: str, reasoni
 class TestDecide:
     def test_returns_agent_decision_instance(self):
         from services.agent_service import decide
-        task = make_task(title="Do something", priority=3)
+        task = make_task(name="Do something", id="task-abc")
         with patch("services.agent_service._build_agent", return_value=_mock_agent(
             task.id, 0.0, "Low productivity score. Prioritize: Do something"
         )):
@@ -74,7 +70,7 @@ class TestDecide:
 
     def test_next_task_resolved_from_id(self):
         from services.agent_service import decide
-        task = make_task(title="High priority", priority=5)
+        task = make_task(name="High priority", id="task-high")
         with patch("services.agent_service._build_agent", return_value=_mock_agent(
             task.id, 0.0, "Prioritize: High priority"
         )):
@@ -84,7 +80,7 @@ class TestDecide:
 
     def test_unknown_task_id_resolves_to_none(self):
         from services.agent_service import decide
-        task = make_task(title="Some task")
+        task = make_task(name="Some task")
         with patch("services.agent_service._build_agent", return_value=_mock_agent(
             "non-existent-id", 0.5, "Keep going"
         )):
@@ -93,7 +89,7 @@ class TestDecide:
 
     def test_productivity_score_passed_through(self):
         from services.agent_service import decide
-        task = make_task(completed=True, priority=4)
+        task = make_task(id="task-done")
         with patch("services.agent_service._build_agent", return_value=_mock_agent(
             None, 1.0, "All done!"
         )):
@@ -102,7 +98,7 @@ class TestDecide:
 
     def test_suggestion_passed_through(self):
         from services.agent_service import decide
-        task = make_task(title="Write tests")
+        task = make_task(name="Write tests")
         with patch("services.agent_service._build_agent", return_value=_mock_agent(
             task.id, 0.3, "Low productivity score. Prioritize: Write tests"
         )):
@@ -111,7 +107,7 @@ class TestDecide:
 
     def test_all_fields_populated(self):
         from services.agent_service import decide
-        task = make_task(title="Deploy", priority=5)
+        task = make_task(name="Deploy", id="task-deploy")
         with patch("services.agent_service._build_agent", return_value=_mock_agent(
             task.id, 0.75, "Good pace. Next up: Deploy", "High priority task selected."
         )):

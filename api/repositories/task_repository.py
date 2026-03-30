@@ -1,76 +1,78 @@
-"""File-based JSON task repository with atomic read-modify-write."""
-import json
-from pathlib import Path
+"""PostgreSQL-backed task repository using asyncpg."""
+import asyncpg
 
-from models.task import Task
-from utils.exceptions import StoreCorruptedError, TaskNotFoundError
+from core.config import Settings
+from models.task import Task, TaskFilters
+from utils.exceptions import TaskNotFoundError
 
 
-class TaskRepository:
-    def __init__(self, store_path: Path) -> None:
-        self._store_path = store_path
+class PostgresTaskRepository:
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+        self._pool = None
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    def _read(self) -> list[dict]:
-        """Read raw task dicts from disk. Returns [] if file absent."""
-        if not self._store_path.exists():
-            return []
-        try:
-            return json.loads(self._store_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
-            raise StoreCorruptedError() from exc
-
-    def _write(self, tasks: list[Task]) -> None:
-        """Serialize and write tasks to disk."""
-        self._store_path.parent.mkdir(parents=True, exist_ok=True)
-        self._store_path.write_text(
-            json.dumps([t.model_dump(mode="json") for t in tasks], indent=2),
-            encoding="utf-8",
+    async def init_pool(self) -> None:
+        """Create the asyncpg connection pool."""
+        s = self._settings
+        dsn = f"postgresql://{s.pg_user}:{s.pg_password}@{s.pg_host}:{s.pg_port}/{s.pg_database}"
+        self._pool = await asyncpg.create_pool(
+            dsn,
+            min_size=s.pg_min_connections,
+            max_size=s.pg_max_connections,
         )
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+    async def close_pool(self) -> None:
+        """Close the connection pool if it exists."""
+        if self._pool is not None:
+            await self._pool.close()
 
-    def list_tasks(self) -> list[Task]:
-        """Return all tasks. Returns [] when store does not exist (Req 4.2)."""
-        return [Task(**raw) for raw in self._read()]
+    async def list_tasks(self, filters: TaskFilters | None = None) -> list[Task]:
+        """Return non-deleted tasks, optionally filtered."""
+        query = "SELECT * FROM public.tasks WHERE is_deleted = false"
+        params: list = []
 
-    def get_task(self, task_id: str) -> Task:
-        """Return task by ID. Raises TaskNotFoundError if absent (Req 4.3)."""
-        for raw in self._read():
-            if raw.get("id") == task_id:
-                return Task(**raw)
-        raise TaskNotFoundError(task_id)
+        if filters is not None:
+            for field in ("status", "priority", "sprint_id", "assigned_to", "phase_id"):
+                value = getattr(filters, field, None)
+                if value is not None:
+                    params.append(value)
+                    query += f" AND {field} = ${len(params)}"
 
-    def save_task(self, task: Task) -> Task:
-        """Append a new task to the store. Creates the file if needed."""
-        tasks = [Task(**raw) for raw in self._read()]
-        tasks.append(task)
-        self._write(tasks)
-        return task
+        query += " ORDER BY created_at DESC"
+        rows = await self._pool.fetch(query, *params)
+        return [self._row_to_task(row) for row in rows]
 
-    def update_task(self, task: Task) -> Task:
-        """Replace an existing task in-place. Raises TaskNotFoundError if absent."""
-        raws = self._read()
-        for i, raw in enumerate(raws):
-            if raw.get("id") == task.id:
-                raws[i] = task.model_dump(mode="json")
-                self._store_path.write_text(
-                    json.dumps(raws, indent=2), encoding="utf-8"
-                )
-                return task
-        raise TaskNotFoundError(task.id)
-
-    def delete_task(self, task_id: str) -> None:
-        """Remove a task by ID. Raises TaskNotFoundError if absent."""
-        raws = self._read()
-        new_raws = [r for r in raws if r.get("id") != task_id]
-        if len(new_raws) == len(raws):
+    async def get_task(self, task_id: str) -> Task:
+        """Return a single task by ID. Raises TaskNotFoundError if absent."""
+        row = await self._pool.fetchrow(
+            "SELECT * FROM public.tasks WHERE id = $1 AND is_deleted = false",
+            task_id,
+        )
+        if row is None:
             raise TaskNotFoundError(task_id)
-        self._store_path.write_text(
-            json.dumps(new_raws, indent=2), encoding="utf-8"
+        return self._row_to_task(row)
+
+    def _row_to_task(self, row) -> Task:
+        """Map an asyncpg Record to a Task model."""
+        return Task(
+            id=row["id"],
+            user_story_id=row["user_story_id"],
+            name=row["name"],
+            short_description=row["short_description"],
+            long_description=row["long_description"],
+            phase_id=row["phase_id"],
+            status=row["status"],
+            priority=row["priority"],
+            assigned_to=row["assigned_to"],
+            estimated_hours=float(row["estimated_hours"]) if row["estimated_hours"] is not None else None,
+            actual_hours=float(row["actual_hours"]) if row["actual_hours"] is not None else None,
+            start_date=row["start_date"],
+            due_date=row["due_date"],
+            completed_at=row["completed_at"],
+            sprint_id=row["sprint_id"],
+            is_deleted=row["is_deleted"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            created_by=row["created_by"],
+            updated_by=row["updated_by"],
         )
