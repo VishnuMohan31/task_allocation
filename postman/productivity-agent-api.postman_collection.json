@@ -1,0 +1,490 @@
+{
+  "info": {
+    "name": "Productivity Agent API",
+    "description": "Collection for testing the Productivity Agent API. Set the `base_url` variable to your server address before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "task_id",
+      "value": "",
+      "type": "string",
+      "description": "Auto-populated after Create Task runs"
+    }
+  ],
+  "item": [
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Create Task — valid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response has id', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.id).to.be.a('string');",
+                  "  pm.collectionVariables.set('task_id', body.id);",
+                  "});",
+                  "pm.test('completed is false', () => pm.expect(pm.response.json().completed).to.be.false);",
+                  "pm.test('created_at is present', () => pm.expect(pm.response.json().created_at).to.be.a('string'));",
+                  "pm.test('completed_at is null', () => pm.expect(pm.response.json().completed_at).to.be.null);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Write unit tests\",\n  \"description\": \"Cover all service layer functions\",\n  \"priority\": 5,\n  \"tags\": [\"testing\", \"backend\"],\n  \"duration_hours\": 1.5,\n  \"deadline\": \"2026-03-25T18:00:00\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/tasks/", "host": ["{{base_url}}"], "path": ["tasks", ""] }
+          }
+        },
+        {
+          "name": "List Tasks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('Array is non-empty after create', () => pm.expect(pm.response.json().length).to.be.at.least(1));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/tasks/", "host": ["{{base_url}}"], "path": ["tasks", ""] }
+          }
+        },
+        {
+          "name": "Get Task — valid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('id matches', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('task_id')));",
+                  "pm.test('title is present', () => pm.expect(pm.response.json().title).to.be.a('string').and.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tasks/{{task_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", "{{task_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Task — not found (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('error_code is TASK_NOT_FOUND', () => pm.expect(pm.response.json().error_code).to.eql('TASK_NOT_FOUND'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tasks/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", "00000000-0000-0000-0000-000000000000"]
+            }
+          }
+        },
+        {
+          "name": "Update Task — valid (PATCH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('title updated', () => pm.expect(pm.response.json().title).to.eql('Write unit tests — updated'));",
+                  "pm.test('priority updated', () => pm.expect(pm.response.json().priority).to.eql(3));",
+                  "pm.test('id unchanged', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('task_id')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Write unit tests — updated\",\n  \"priority\": 3,\n  \"duration_hours\": 1.0,\n  \"deadline\": \"2026-03-26T12:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tasks/{{task_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", "{{task_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Task — not found (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('error_code is TASK_NOT_FOUND', () => pm.expect(pm.response.json().error_code).to.eql('TASK_NOT_FOUND'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Ghost task\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tasks/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", "00000000-0000-0000-0000-000000000000"]
+            }
+          }
+        },
+        {
+          "name": "Update Task — invalid priority (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('error_code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error_code).to.eql('VALIDATION_ERROR'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"priority\": 99\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tasks/{{task_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", "{{task_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Complete Task — valid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('completed is true', () => pm.expect(pm.response.json().completed).to.be.true);",
+                  "pm.test('completed_at is set', () => pm.expect(pm.response.json().completed_at).to.be.a('string'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tasks/{{task_id}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", "{{task_id}}", "complete"]
+            }
+          }
+        },
+        {
+          "name": "Complete Task — already completed (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('error_code is TASK_ALREADY_COMPLETED', () => pm.expect(pm.response.json().error_code).to.eql('TASK_ALREADY_COMPLETED'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tasks/{{task_id}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", "{{task_id}}", "complete"]
+            }
+          }
+        },
+        {
+          "name": "Complete Task — not found (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('error_code is TASK_NOT_FOUND', () => pm.expect(pm.response.json().error_code).to.eql('TASK_NOT_FOUND'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tasks/00000000-0000-0000-0000-000000000000/complete",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", "00000000-0000-0000-0000-000000000000", "complete"]
+            }
+          }
+        },
+        {
+          "name": "Delete Task — valid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Body is empty', () => pm.expect(pm.response.text()).to.be.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tasks/{{task_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", "{{task_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Task — not found (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('error_code is TASK_NOT_FOUND', () => pm.expect(pm.response.json().error_code).to.eql('TASK_NOT_FOUND'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/tasks/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["tasks", "00000000-0000-0000-0000-000000000000"]
+            }
+          }
+        },
+        {
+          "name": "Create Task — missing title (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('error_code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error_code).to.eql('VALIDATION_ERROR'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"priority\": 3\n}"
+            },
+            "url": { "raw": "{{base_url}}/tasks/", "host": ["{{base_url}}"], "path": ["tasks", ""] }
+          }
+        },
+        {
+          "name": "Create Task — empty title (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('error_code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error_code).to.eql('VALIDATION_ERROR'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"\",\n  \"priority\": 3\n}"
+            },
+            "url": { "raw": "{{base_url}}/tasks/", "host": ["{{base_url}}"], "path": ["tasks", ""] }
+          }
+        },
+        {
+          "name": "Create Task — priority out of range (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('error_code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error_code).to.eql('VALIDATION_ERROR'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Some task\",\n  \"priority\": 10\n}"
+            },
+            "url": { "raw": "{{base_url}}/tasks/", "host": ["{{base_url}}"], "path": ["tasks", ""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Agent",
+      "item": [
+        {
+          "name": "Get Agent Decision",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has next_task field', () => pm.expect(pm.response.json()).to.have.property('next_task'));",
+                  "pm.test('Has productivity_score field', () => pm.expect(pm.response.json()).to.have.property('productivity_score'));",
+                  "pm.test('Has suggestion field', () => pm.expect(pm.response.json()).to.have.property('suggestion'));",
+                  "pm.test('productivity_score is a number', () => pm.expect(pm.response.json().productivity_score).to.be.a('number'));",
+                  "pm.test('productivity_score in [0, 1]', () => {",
+                  "  const score = pm.response.json().productivity_score;",
+                  "  pm.expect(score).to.be.at.least(0).and.at.most(1);",
+                  "});",
+                  "pm.test('suggestion is non-empty string', () => {",
+                  "  pm.expect(pm.response.json().suggestion).to.be.a('string').and.not.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/agent/decision",
+              "host": ["{{base_url}}"],
+              "path": ["agent", "decision"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "OpenAPI Docs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Docs page is reachable', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/docs", "host": ["{{base_url}}"], "path": ["docs"] }
+          }
+        },
+        {
+          "name": "OpenAPI JSON Schema",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Schema is reachable', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is JSON', () => pm.response.to.be.json);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/openapi.json", "host": ["{{base_url}}"], "path": ["openapi.json"] }
+          }
+        }
+      ]
+    }
+  ]
+}

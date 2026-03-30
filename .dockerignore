@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Tests
+tests/
+.pytest_cache/
+.hypothesis/
+test-results/
+
+# Dev files
+.env.local
+*.md
+postman/
+
+# Frontend (not needed in backend image)
+ui/
+
+# Git
+.git/
+.gitignore

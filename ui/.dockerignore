@@ -1,0 +1,13 @@
+# Dependencies (will be installed fresh in container)
+node_modules/
+
+# Build output (built inside container)
+dist/
+
+# Dev files
+.env.local
+*.md
+
+# Git
+.git/
+.gitignore

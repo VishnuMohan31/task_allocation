@@ -1,0 +1,65 @@
+[
+  {
+    "id": "09fc7af5-3cca-4e70-8d88-d9a25637143e",
+    "title": "Write unit tests",
+    "description": "Cover all service layer functions",
+    "priority": 5,
+    "tags": [
+      "testing",
+      "backend"
+    ],
+    "duration_hours": 1.5,
+    "deadline": "2026-03-25T18:00:00",
+    "completed": false,
+    "created_at": "2026-03-23T17:39:54.432428",
+    "completed_at": null
+  },
+  {
+    "id": "60e6bfab-82ab-4e89-888f-059fcb762260",
+    "title": "Implement authentication middleware",
+    "description": "Add JWT-based authentication for all protected routes",
+    "priority": 4,
+    "tags": [
+      "backend",
+      "security",
+      "middleware"
+    ],
+    "duration_hours": 1.2,
+    "deadline": "2026-03-24T18:00:00",
+    "completed": false,
+    "created_at": "2026-03-23T17:41:29.473131",
+    "completed_at": null
+  },
+  {
+    "id": "4433bbe5-cc32-4008-83a4-31366f0066c7",
+    "title": "Optimize database queries",
+    "description": "Refactor service layer to use indexed queries for performance",
+    "priority": 3,
+    "tags": [
+      "backend",
+      "database",
+      "optimization"
+    ],
+    "duration_hours": 1.5,
+    "deadline": "2026-03-27T18:00:00",
+    "completed": false,
+    "created_at": "2026-03-23T17:42:10.859499",
+    "completed_at": null
+  },
+  {
+    "id": "52e5e9ee-4a14-4a09-8308-fa84ff4619df",
+    "title": "Add logging service",
+    "description": "Integrate centralized logging with structured JSON output",
+    "priority": 3,
+    "tags": [
+      "backend",
+      "logging",
+      "monitoring"
+    ],
+    "duration_hours": 2.0,
+    "deadline": "2026-03-24T12:00:00",
+    "completed": false,
+    "created_at": "2026-03-23T17:43:09.524238",
+    "completed_at": null
+  }
+]
