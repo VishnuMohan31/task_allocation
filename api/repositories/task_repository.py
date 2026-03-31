@@ -28,6 +28,8 @@ class PostgresTaskRepository:
 
     async def list_tasks(self, filters: TaskFilters | None = None) -> list[Task]:
         """Return non-deleted tasks, optionally filtered."""
+        if self._pool is None:
+            await self.init_pool()
         query = "SELECT * FROM public.tasks WHERE is_deleted = false"
         params: list = []
 
@@ -44,6 +46,8 @@ class PostgresTaskRepository:
 
     async def get_task(self, task_id: str) -> Task:
         """Return a single task by ID. Raises TaskNotFoundError if absent."""
+        if self._pool is None:
+            await self.init_pool()
         row = await self._pool.fetchrow(
             "SELECT * FROM public.tasks WHERE id = $1 AND is_deleted = false",
             task_id,

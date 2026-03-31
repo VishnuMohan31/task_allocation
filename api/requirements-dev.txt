@@ -1,0 +1,6 @@
+# Development: LangSmith Studio + local Agent Server (graph visualization)
+# Install: pip install -r requirements-dev.txt
+# Run from api/: langgraph dev --allow-blocking
+#   (--allow-blocking avoids BlockingError from sync calls inside LangChain/OpenAI in async runs)
+-r requirements.txt
+langgraph-cli[inmem]>=0.1.55

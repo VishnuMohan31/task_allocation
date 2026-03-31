@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import sys
 from pathlib import Path
 
@@ -19,14 +20,29 @@ from app.api.agent import router as agent_router
 from app.api.tasks import router as tasks_router, _repo
 from app.middleware import LoggingMiddleware
 from core.config import settings
+from core.logging import get_logger
 from utils.error_handlers import register_exception_handlers
+
+logger = get_logger("app.main")
 
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Configure LangSmith tracing if enabled
+    if settings.langsmith_tracing:
+        os.environ["LANGCHAIN_TRACING_V2"] = "true"
+        os.environ["LANGCHAIN_API_KEY"] = settings.langsmith_api_key
+        os.environ["LANGCHAIN_PROJECT"] = settings.langsmith_project
+        os.environ["LANGCHAIN_ENDPOINT"] = settings.langsmith_endpoint
+        logger.info("langsmith_tracing_enabled", extra={"project": settings.langsmith_project})
+
+    logger.info("startup", extra={"pg_host": settings.pg_host, "pg_port": settings.pg_port})
     await _repo.init_pool()
+    logger.info("db_pool_ready")
     yield
+    logger.info("shutdown")
     await _repo.close_pool()
+    logger.info("db_pool_closed")
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)

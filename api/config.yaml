@@ -1,0 +1,91 @@
+# ── Application ────────────────────────────────────────────────────────────
+app_name: "Productivity Agent API"
+log_level: "INFO"
+store_path: "data/store.json"
+
+# ── Server ──────────────────────────────────────────────────────────────────
+host: "0.0.0.0"
+port: 8000
+reload: false
+
+# ── OpenAI / LangChain ──────────────────────────────────────────────────────
+openai_api_key: ""          # override via OPENAI_API_KEY env var
+openai_model: "gpt-4o-mini"
+openai_temperature: 0.0
+
+# ── LangSmith tracing ───────────────────────────────────────────────────────
+langsmith_tracing: false              # set true to enable tracing
+langsmith_api_key: ""                 # override via LANGSMITH_API_KEY env var
+langsmith_project: "productivity-agent"  # project name in LangSmith UI
+langsmith_endpoint: "https://api.smith.langchain.com"
+
+# ── Agent Prompts ───────────────────────────────────────────────────────────
+agent_system_prompt: >-
+  You are a productivity assistant agent. Tools: get_current_date_context (today's date for due-date
+  comparisons) and get_tasks (loads the live task list from the database — same data as the tasks API).
+
+  Your job:
+  1. Call get_tasks for task data; call get_current_date_context when you need today's date.
+  2. Reason holistically across ALL tasks to determine the current state of work:
+     - How much is done vs remaining?
+     - Which tasks are urgent given their due dates and today's date?
+     - How much effort (hours) is left vs what has been logged?
+     - Which priorities are still outstanding?
+  3. Dynamically decide a productivity_score (0.0 to 1.0) based on your own assessment
+     of the overall situation — do NOT use a fixed formula. Consider urgency, effort remaining,
+     priority distribution, and completion rate together. A score of 1.0 means everything
+     critical is on track or done; 0.0 means the team is severely behind.
+  4. Identify the single best next task to work on right now.
+  5. Return ONLY a JSON object with exactly these fields:
+     next_task_id (string id or null),
+     productivity_score (float 0.0–1.0),
+     suggestion (short actionable string),
+     reasoning (explain how you assessed the situation and arrived at the score and recommendation).
+agent_user_prompt: "Call get_tasks to load tasks from the database, then respond with only the required JSON object."
+agent_no_pending_message: "No pending tasks."
+
+# ── Middleware / Logging ────────────────────────────────────────────────────
+middleware_logger_name: "app.middleware"
+log_event_request: "request"
+log_event_response: "response"
+log_dir: "logs"
+log_file_name: "app.log"
+log_max_bytes: 10485760   # 10 MB
+log_backup_count: 5
+
+# ── Error Codes & Messages ──────────────────────────────────────────────────
+error_code_internal: "INTERNAL_ERROR"
+error_code_not_found: "TASK_NOT_FOUND"
+error_code_store_corrupted: "STORE_CORRUPTED"
+error_code_validation: "VALIDATION_ERROR"
+error_code_task_already_completed: "TASK_ALREADY_COMPLETED"
+error_msg_internal: "An unexpected error occurred"
+error_msg_store_corrupted: "Data store is corrupted"
+error_msg_validation: "Request validation failed"
+
+# ── Router Config ───────────────────────────────────────────────────────────
+tasks_prefix: "/tasks"
+tasks_tag: "tasks"
+agent_prefix: "/agent"
+agent_tag: "agent"
+agent_decision_path: "/decision"
+
+# ── Task Model ──────────────────────────────────────────────────────────────
+task_title_max_length: 200
+task_priority_min: 1
+task_priority_max: 5
+task_title_empty_error: "title must not be empty or whitespace"
+task_duration_min: 0.25
+
+# ── Exception Messages ──────────────────────────────────────────────────────
+exc_task_not_found_template: "Task {task_id} not found"
+exc_task_already_completed_template: "Task {task_id} is already completed"
+
+# ── PostgreSQL / worky ──────────────────────────────────────────────────────
+pg_host: "localhost"        # override via PG_HOST env var
+pg_port: 5437
+pg_database: "worky"
+pg_user: "postgres"
+pg_password: ""             # override via PG_PASSWORD env var
+pg_min_connections: 2
+pg_max_connections: 10

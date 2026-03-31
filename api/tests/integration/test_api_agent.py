@@ -10,7 +10,7 @@ Uses FastAPI TestClient with the agent service mocked so no real OpenAI calls ar
 """
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,14 +24,14 @@ from models.agent import AgentDecision
 
 
 def _mock_decide(next_task=None, score=0.0, suggestion="No tasks yet.", reasoning="Mock reasoning."):
-    """Return a callable that returns a fixed AgentDecision."""
+    """Async mock returning a fixed AgentDecision."""
     decision = AgentDecision(
         next_task=next_task,
         productivity_score=score,
         suggestion=suggestion,
         reasoning=reasoning,
     )
-    return MagicMock(return_value=decision)
+    return AsyncMock(return_value=decision)
 
 
 # ---------------------------------------------------------------------------
